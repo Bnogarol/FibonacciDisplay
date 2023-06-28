@@ -1,95 +1,95 @@
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+use work.display.all -- Importando todas as funções da biblioteca display
 
-entity FSM_Fibonacci is
+entity FibonacciFSM is -- Declaração da entidade FibonacciFSM
   port (
-    clk, rst   :   in   std_logic;
-    display    :   out   std_logic_vector(0 to 41);
-    keyEntries :   in std_logic_vector(0 to 9)
+    clk, reset   :   in   std_logic; -- Sinais de clock e reset
+    displayOut   :   out   std_logic_vector(0 to 41); -- Vetor de saída para o display
+    keyInputs    :   in std_logic_vector(0 to 9) -- Vetor de entrada para as chaves
   ) ;
-end FSM_Fibonacci;
+end FibonacciFSM;
 
-architecture fsm of FSM_Fibonacci is
-    type    estado is (A, B, C, D, E); 
-    signal  estado_atual, estado_futuro  :   estado;
-    signal fibo2out  : integer :=0;
-    signal disp1value, disp2value, disp3value, disp4value, disp5value, disp6value : integer;
-    signal needCouting : integer :=0;
-    signal oneSecGone: integer :=0;
-    signal auxCouting: integer :=0;
-    signal value_to_count : integer :=1;
+architecture fsm of FibonacciFSM is
+    type    state is (s0, s1, s2, s3, s4);  -- Tipos de estados
+    signal  currentState, nextState  :   state; -- Sinais para o estado atual e o próximo estado
+    signal fibonacciOut  : integer :=0; -- Saída da sequência de Fibonacci
+    signal disp1, disp2, disp3, disp4, disp5, disp6 : integer; -- Variáveis para exibir o valor
+    signal counterFlag : integer :=0; -- Variável que indica se a contagem precisa ser feita
+    signal secondPassed: integer :=0; -- Variável para sinalizar que um segundo passou
+    signal auxCounter: integer :=0; -- Variável auxiliar para contagem
+    signal counterValue : integer :=1; -- Valor que deve ser contado
+
 begin
-    conv : entity work.binToDec(rtl) port map(fibo2out, disp1value, disp2value, disp3value, disp4value, disp5value, disp6value);
+    binToDecConvert : entity work.binToDec(rtl) port map(fibonacciOut, disp1, disp2, disp3, disp4, disp5, disp6); -- Conversão de binário para decimal
 
-    generate_display1 : entity work.decod7seg(logic) port map (disp1value, display(0 to 6));
-    generate_display2 : entity work.decod7seg(logic) port map (disp2value, display(7 to 13));
-    generate_display3 : entity work.decod7seg(logic) port map (disp3value, display(14 to 20));
-    generate_display4 : entity work.decod7seg(logic) port map (disp4value, display(21 to 27));
-    generate_display5 : entity work.decod7seg(logic) port map (disp5value, display(28 to 34));
-    generate_display6 : entity work.decod7seg(logic) port map (disp6value, display(35 to 41));
+    display1 : entity work.decod7seg(logic) port map (disp1, displayOut(0 to 6)); -- Decodificando valor para o display 1
+    display2 : entity work.decod7seg(logic) port map (disp2, displayOut(7 to 13)); -- Decodificando valor para o display 2
+    display3 : entity work.decod7seg(logic) port map (disp3, displayOut(14 to 20)); -- Decodificando valor para o display 3
+    display4 : entity work.decod7seg(logic) port map (disp4, displayOut(21 to 27)); -- Decodificando valor para o display 4
+    display5 : entity work.decod7seg(logic) port map (disp5, displayOut(28 to 34)); -- Decodificando valor para o display 5
+    display6 : entity work.decod7seg(logic) port map (disp6, displayOut(35 to 41)); -- Decodificando valor para o display 6
 
-    atualiza_estado : process( clk, rst, estado_futuro )
+    stateUpdate : process( clk, reset, nextState ) -- Processo para atualizar o estado atual
     begin
-        if rst = '0' then 
-            estado_atual <= A;
+        if reset = '0' then 
+            currentState <= s0; -- Resetar para o estado s0
         elsif rising_edge(clk) then
-            estado_atual <= estado_futuro;
+            currentState <= nextState; -- Mudança para o próximo estado na borda de subida do clock
         end if;      
-    end process ; -- atualiza_estado
+    end process ; -- stateUpdate
 
-    comb : process(estado_atual)
-        variable fibo0, fibo1, fibo2 : integer;
+    comb : process(currentState) -- Processo comb
+        variable fib0, fib1, fib2 : integer; -- Variáveis da sequência de Fibonacci
     begin
-        case( estado_atual ) is
-            when A =>
-                fibo0 := 1;
-                fibo1 := 1;
-                fibo2 := 0;
-                estado_futuro <= B;
-            when B =>
-                
-                fibo2:=fibo1+fibo0;
+        case( currentState ) is
+            when s0 =>
+                fib0 := 1; -- Inicializando a sequência de Fibonacci
+                fib1 := 1; 
+                fib2 := 0;
+                nextState <= s1;
+            when s1 =>
+                fib2:=fib1+fib0; -- Gerando o próximo número da sequência de Fibonacci
+                nextState<=s2;    
 
-                estado_futuro<=C;    
+            when s2 =>
+                fib0:=fib1; -- Atualizando o primeiro número da sequência
+                nextState<=s3;   
 
-            when C =>
-                fibo0:=fibo1;
-                estado_futuro<=D;   
+            when s3 =>
+                fib1:=fib2; -- Atualizando o segundo número da sequência
+                nextState<=s4;  
 
-            when D =>
-                fibo1:=fibo2;
-                estado_futuro<=E;  
-
-            when E =>
-                fibo2out<= fibo2;
-                needCouting <= 1;
-                while oneSecGone = 0 loop
-                    null;
+            when s4 =>
+                fibonacciOut<= fib2; -- Atualizando a saída da sequência de Fibonacci
+                counterFlag <= 1; -- Indicando que a contagem precisa ser feita
+                while secondPassed = 0 loop
+                    null; -- Aguardando até que um segundo passe
                 end loop;
-                needCouting <= 0;
-					 oneSecGone <= 0;
-                if (fibo2*2) > 999999 then
-                    estado_futuro<=A;  
+                counterFlag <= 0; -- Indicando que a contagem foi concluída
+                secondPassed <= 0;
+                if (fib2*2) > 99999 then
+                    nextState<=s0;  -- Resetando para o estado s0 se o valor da sequência for muito grande
                 else
-                    estado_futuro<=B;
+                    nextState<=s1;
                 end if;
-            when others => fibo2<=999999;
+            when others => fib2<=99999; -- Limitando o valor de fib2
         
         end case ;
     end process ; -- comb
 
-    countTime : process (clk, needCouting)
+    timeCounter : process (clk, counterFlag) -- Processo para contar o tempo
     begin
-        if needCouting = 0 then
-            auxCouting <= 0;
+        if counterFlag = 0 then
+            auxCounter <= 0;
         elsif rising_edge(clk) then
-            auxCouting <= auxCouting + 1;
-            if auxCouting = value_to_count then
-                oneSecGone <= 1;
-                auxCouting <= 0;
+            auxCounter <= auxCounter + 1;
+            if auxCounter = counterValue then
+                auxCounter <= 0; -- Resetando a contagem
+                secondPassed <= 1; -- Indicando que um segundo passou
 				end if;
 		  end if;
     end process;
 
-end fsm ; -- fsm
+end fsm ;
